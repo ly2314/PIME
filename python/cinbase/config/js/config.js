@@ -1,51 +1,55 @@
 
 var defaultcinCount = {
-    "cjkExtEchardefs": 0,
-    "cjkchardefs": 0,
-    "big5LFchardefs": 0,
-    "cjkExtCchardefs": 0,
-    "cjkOtherchardefs": 0,
-    "cjkExtDchardefs": 0,
-    "cjkTotalchardefs": 0,
-    "big5Fchardefs": 0,
-    "big5Otherchardefs": 0,
-    "cjkExtAchardefs": 0,
-    "bopomofochardefs": 0,
-    "cjkExtBchardefs": 0
+    "big5F": 0,
+    "big5LF": 0,
+    "big5Other": 0,
+    "big5S": 0,
+    "bopomofo": 0,
+    "cjk": 0,
+    "cjkCIS": 0,
+    "cjkExtA": 0,
+    "cjkExtB": 0,
+    "cjkExtC": 0,
+    "cjkExtD": 0,
+    "cjkExtE": 0,
+    "cjkOther": 0,
+    "phrases": 0,
+    "privateuse": 0,
+    "totalchardefs": 0
 }
 
 var defaultcinName = {
-    "checj.cin": "酷倉",
-    "mscj3.cin": "倉頡",
-    "mscj3-ext.cin": "倉頡(大字集)",
-    "cj-ext.cin": "雅虎倉頡",
-    "cnscj.cin": "中標倉頡",
-    "thcj.cin": "泰瑞倉頡",
-    "newcj3.cin": "亂倉打鳥",
-    "cj5.cin": "倉頡五代",
-    "newcj.cin": "自由大新倉頡",
-    "scj6.cin": "快倉六代",
-    "thphonetic.cin": "泰瑞注音",
-    "CnsPhonetic.cin": "中標注音",
-    "bpmf.cin": "傳統注音",
-    "tharray.cin": "泰瑞行列30",
-    "array30.cin": "行列30",
-    "ar30-big.cin": "行列30大字集",
-    "array40.cin": "行列40",
-    "thdayi.cin": "泰瑞大易四碼",
-    "dayi4.cin": "大易四碼",
-    "dayi3.cin": "大易三碼",
-    "ez.cin": "輕鬆",
-    "ezsmall.cin": "輕鬆小詞庫",
-    "ezmid.cin": "輕鬆中詞庫",
-    "ezbig.cin": "輕鬆大詞庫",
-    "thpinyin.cin": "泰瑞拼音",
-    "pinyin.cin": "正體拼音",
-    "roman.cin": "羅馬拼音",
-    "simplecj.cin": "正體簡易",
-    "simplex.cin": "速成",
-    "simplex5.cin": "簡易五代",
-    "liu.cin": "嘸蝦米"
+    "checj.json": "酷倉",
+    "mscj3.json": "倉頡",
+    "mscj3-ext.json": "倉頡(大字集)",
+    "cj-ext.json": "雅虎倉頡",
+    "cnscj.json": "中標倉頡",
+    "thcj.json": "泰瑞倉頡",
+    "newcj3.json": "亂倉打鳥",
+    "cj5.json": "倉頡五代",
+    "newcj.json": "自由大新倉頡",
+    "scj6.json": "快倉六代",
+    "thphonetic.json": "泰瑞注音",
+    "CnsPhonetic.json": "中標注音",
+    "bpmf.json": "傳統注音",
+    "tharray.json": "泰瑞行列30",
+    "array30.json": "行列30",
+    "ar30-big.json": "行列30大字集",
+    "array40.json": "行列40",
+    "thdayi.json": "泰瑞大易四碼",
+    "dayi4.json": "大易四碼",
+    "dayi3.json": "大易三碼",
+    "ez.json": "輕鬆",
+    "ezsmall.json": "輕鬆小詞庫",
+    "ezmid.json": "輕鬆中詞庫",
+    "ezbig.json": "輕鬆大詞庫",
+    "thpinyin.json": "泰瑞拼音",
+    "pinyin.json": "正體拼音",
+    "roman.json": "羅馬拼音",
+    "simplecj.json": "正體簡易",
+    "simplex.json": "速成",
+    "simplex5.json": "簡易五代",
+    "liu.json": "嘸蝦米"
 }
 
 var selHCins = [
@@ -60,7 +64,7 @@ var cinCount = {};
 var CONFIG_URL = '/config';
 var VERSION_URL = '/version.txt';
 var KEEP_ALIVE_URL = '/keep_alive';
-var GETCINCOUNT_URL = '/getcincount';
+var hasInnerText = (document.getElementsByTagName("body")[0].innerText !== undefined) ? true : false;
 
 var symbolsChanged = false;
 var swkbChanged = false;
@@ -76,14 +80,53 @@ var phraseData = "";
 var flangsData = "";
 var extendtableData = "";
 
-var oldselCinType;
+var isIE = (function() {
+    var browser = {};
+    return function(ver,c) {
+        var key = ver ?  ( c ? "is"+c+"IE"+ver : "isIE"+ver ) : "isIE";
+        var v = browser[key];
+        if (typeof(v) != "undefined") {
+            return v;
+        }
+        if (!ver) {
+            v = (navigator.userAgent.indexOf('MSIE') !== -1 || navigator.appVersion.indexOf('Trident/') > 0);
+        } else {
+            var match = navigator.userAgent.match(/(?:MSIE |Trident\/.*; rv:|Edge\/)(\d+)/);
+                if (match) {
+                    var v1 = parseInt(match[1]);
+                    v = c ?  ( c == 'lt' ?  v1 < ver  :  ( c == 'gt' ?  v1 >  ver : undefined ) ) : v1 == ver;
+                } else if (ver <= 9) {
+                    var b = document.createElement('b')
+                    var s = '<!--[if '+(c ? c : '')+' IE '  + ver + ']><i></i><![endif]-->';
+                    b.innerHTML = s;
+                    v =  b.getElementsByTagName('i').length == 1;
+                } else {
+                    v = undefined;
+                }
+        }
+        browser[key] = v;
+        return v;
+    };
+}());
 
+var isOldIE = (isIE() && isIE(9, 'lt'))
+
+if (!isOldIE) {
+    includeScriptFile("js/jAlert/jAlert.min.js")
+} else {
+    includeScriptFile("js/jAlert/jAlert-ie8.min.js")
+}
+
+if (!Date.now) {
+    Date.now = function() {
+        return new Date().valueOf();
+    }
+}
 loadConfig();
 
 function loadConfig() {
     $.get(CONFIG_URL, function(data, status) {
         checjConfig = data.config;
-        oldselCinType = checjConfig.selCinType;
         cinCount = data.cincount;
         symbolsData = data.symbols;
         swkbData = data.swkb;
@@ -156,33 +199,10 @@ function saveConfig(callbackFunc) {
         data.extendtable = $("#extendtable").val();
     }
 
-    if(oldselCinType != data.config['selCinType']) {
-
-        $.ajax({
-            url: GETCINCOUNT_URL,
-            method: "POST",
-            async: false,
-            success: function() {
-                updateCinCountElements();
-                oldselCinType = data.config.selCinType;
-            },
-            beforeSend: function() {
-                swal({
-                    title: '請稍後!',
-                    text: '正在解析碼表...',
-                    type: 'info',
-                    showConfirmButton: false
-                });
-            },
-            contentType: "application/json",
-            data: JSON.stringify(data),
-            dataType:"json"
-        });
-    }
-
     $.ajax({
         url: CONFIG_URL,
         method: "POST",
+        async: false,
         success: callbackFunc(),
         contentType: "application/json",
         data: JSON.stringify(data),
@@ -191,21 +211,35 @@ function saveConfig(callbackFunc) {
 }
 
 
+function setElementText(elemId, elemText) {
+    var elem = document.getElementById(elemId);
+    if (!hasInnerText) {
+        elem.textContent = elemText;
+    } else {
+        elem.innerText = elemText;
+    }
+}
+
+
 function updateCinCountElements() {
-    $.get(CONFIG_URL, function(data, status) {
+    $.get(CONFIG_URL + '?' + Date.now(), function(data, status) {
         cinCountList = data.cincount;
-        document.getElementById('bopomofochardefs').innerText = cinCountList['bopomofochardefs'];
-        document.getElementById('big5Fchardefs').innerText = cinCountList['big5Fchardefs'];
-        document.getElementById('big5LFchardefs').innerText = cinCountList['big5LFchardefs'];
-        document.getElementById('big5Otherchardefs').innerText = cinCountList['big5Otherchardefs'];
-        document.getElementById('cjkchardefs').innerText = cinCountList['cjkchardefs'];
-        document.getElementById('cjkExtAchardefs').innerText = cinCountList['cjkExtAchardefs'];
-        document.getElementById('cjkExtBchardefs').innerText = cinCountList['cjkExtBchardefs'];
-        document.getElementById('cjkExtCchardefs').innerText = cinCountList['cjkExtCchardefs'];
-        document.getElementById('cjkExtDchardefs').innerText = cinCountList['cjkExtDchardefs'];
-        document.getElementById('cjkExtEchardefs').innerText = cinCountList['cjkExtEchardefs'];
-        document.getElementById('cjkOtherchardefs').innerText = cinCountList['cjkOtherchardefs'];
-        document.getElementById('cjkTotalchardefs').innerText = cinCountList['cjkTotalchardefs'];
+        setElementText('big5F', cinCountList['big5F']);
+        setElementText('big5LF', cinCountList['big5LF']);
+        setElementText('big5S', cinCountList['big5S']);
+        setElementText('big5Other', cinCountList['big5Other']);
+        setElementText('bopomofo', cinCountList['bopomofo']);
+        setElementText('cjk', cinCountList['cjk']);
+        setElementText('cjkExtA', cinCountList['cjkExtA']);
+        setElementText('cjkExtB', cinCountList['cjkExtB']);
+        setElementText('cjkExtC', cinCountList['cjkExtC']);
+        setElementText('cjkExtD', cinCountList['cjkExtD']);
+        setElementText('cjkExtE', cinCountList['cjkExtE']);
+        setElementText('cjkCIS', cinCountList['cjkCIS']);
+        setElementText('cjkOther', cinCountList['cjkOther']);
+        setElementText('phrases', cinCountList['phrases']);
+        setElementText('privateuse', cinCountList['privateuse']);
+        setElementText('totalchardefs', cinCountList['totalchardefs']);
     }, "json");
 }
 
@@ -259,33 +293,58 @@ function checkDataFormat(checkData, checkType, elementId, dataDesc) {
             case "1":
                 if (! /^[A-Za-z] .{1,10}$/.test(data_array[i])) {
                     errorState = true;
-                    swal(
-                        '糟糕',
-                        dataDesc + '設定第 ' + (i + 1) + ' 行 ('+ data_array[i] +')格式錯誤\n請使用「英文 + 空格 + 符號」的格式',
-                        'error'
-                    );
+                    $.jAlert({
+                        'title': '糟糕！',
+                        'content': dataDesc + '設定第 ' + (i + 1) + ' 行「'+ data_array[i] +'」格式錯誤！<br>請使用「英文 + 空格 + 符號」的格式。',
+                        'theme': 'dark_red',
+                        'size': 'md',
+                        'blurBackground': true,
+                        'closeOnClick': true,
+                        'showAnimation': 'zoomIn',
+                        'hideAnimation': 'zoomOutDown',
+                        'btns': {'text': '關閉', 'theme': 'blue'}
+                    });
                 }
                 break;
             case "2":
                 if (data_array[i].length > 1 && data_array[i].search("=") == -1) {
                     errorState = true;
-                    swal(
-                        '糟糕',
-                        dataDesc + '設定第 ' + (i + 1) + ' 行格式錯誤\n單行不能超過一個字元，或是沒有 = 符號區隔',
-                        'error'
-                    );
+                    $.jAlert({
+                        'title': '糟糕！',
+                        'content': dataDesc + '設定第 ' + (i + 1) + ' 行格式錯誤！<br>單行不能超過一個字元，或是沒有 = 符號區隔。',
+                        'theme': 'dark_red',
+                        'size': 'md',
+                        'blurBackground': true,
+                        'closeOnClick': true,
+                        'showAnimation': 'zoomIn',
+                        'hideAnimation': 'zoomOutDown',
+                        'btns': {'text': '關閉', 'theme': 'blue'}
+                    });
                 }
                 break;
             case "3":
                 if (! /^[A-Za-z\d]+ .{1,40}$/.test(data_array[i])) {
-                    if (!data_array[i].length == 0 && i == 0)
+                    if (!(data_array.length == 1 && data_array[0].length == 0))
                     {
                         errorState = true;
-                        swal(
-                            '糟糕',
-                            dataDesc + '設定第 ' + (i + 1) + ' 行 ('+ data_array[i] +')格式錯誤\n請使用「英數 + 空格 + 字詞」的格式',
-                            'error'
-                        );
+                        if (data_array[i].length == 0) {
+                            alertContent = dataDesc + '設定第 ' + (i + 1) + ' 行為空行！<br>請去除該空行或使用「英數 + 空格 + 字詞」的格式。'
+                        }
+                        else {
+                            alertContent = dataDesc + '設定第 ' + (i + 1) + ' 行「'+ data_array[i] +'」格式錯誤！<br>請使用「英數 + 空格 + 字詞」的格式。'
+                        }
+
+                        $.jAlert({
+                            'title': '糟糕！',
+                            'content': alertContent,
+                            'theme': 'dark_red',
+                            'size': 'md',
+                            'blurBackground': true,
+                            'closeOnClick': true,
+                            'showAnimation': 'zoomIn',
+                            'hideAnimation': 'zoomOutDown',
+                            'btns': {'text': '關閉', 'theme': 'blue'}
+                        });
                     }
                 }
                 break;
@@ -336,10 +395,6 @@ function pageWait() {
 }
 
 function pageReady() {
-    $("#tabs").show();
-    $(document).tooltip();
-    $("#tabs").tabs({heightStyle:"auto"});
-
     updateCinCountElements();
 
     $("#symbols").val(symbolsData);
@@ -350,15 +405,16 @@ function pageReady() {
     $("#extendtable").val(extendtableData);
 
     if (imeFolderName == "chedayi") {
-        $("#candPerRow").spinner({min:1, max:6});
-        $("#candPerPage").spinner({min:1, max:6});
+        $("#candPerRow").TouchSpin({min:1, max:6});
+        $("#candPerPage").TouchSpin({min:1, max:6});
     }
     else {
-        $("#candPerRow").spinner({min:1, max:10});
-        $("#candPerPage").spinner({min:1, max:10});
+        $("#candPerRow").TouchSpin({min:1, max:10});
+        $("#candPerPage").TouchSpin({min:1, max:10});
     }
-    $("#candMaxItems").spinner({min:100, max:10000});
-    $("#fontSize").spinner({min:6, max:200});
+    $("#candMaxItems").TouchSpin({min:100, max:10000});
+    $("#fontSize").TouchSpin({min:6, max:200});
+
 
     var selCinType = $("#selCinType");
     for(var i = 0; i < selCins.length; ++i) {
@@ -450,12 +506,19 @@ function pageReady() {
     $("#ok").on('click', function () {
         updateConfig(); // update the config based on the state of UI elements
         saveConfig(function() {
-            swal(
-              '好耶！',
-              '設定成功儲存！',
-              'success'
-            );
+            $.jAlert({
+            'title': '好耶！',
+            'content': '設定成功儲存！',
+            'theme': 'blue',
+            'size': 'md',
+            'blurBackground': true,
+            'closeOnClick': true,
+            'showAnimation': 'zoomIn',
+            'hideAnimation': 'zoomOutDown',
+            'btns': {'text': '關閉', 'theme': 'blue'}
+            });
         });
+        updateCinCountElements();
         return false;
     });
 
@@ -473,7 +536,7 @@ function pageReady() {
         }
     });
 
-        // use for select example
+    // use for select example
     function updateSelExample() {
         var example = ["選", "字", "大", "小", "範", "例"];
         var html="";
@@ -561,6 +624,12 @@ function pageReady() {
     disableControlItem();
 
     // trigger event
+    $('#navbars ul li a').click(function(){ 
+        if($('.navbar-toggle').css('display') !='none') {
+            $('.navbar-toggle').click();
+        }
+    });
+
     $('#directShowCand').click(function() {
         if ($('#directShowCand')[0].checked == false && $('#compositionBufferMode')[0].checked == false) {
             $("#directCommitString")[0].disabled = false;
@@ -593,7 +662,7 @@ function pageReady() {
         }
     });
 
-    $("#selCinType").click(function() {
+    $("#selCinType").change(function() {
         var selCin = parseInt($("#selCinType").find(":selected").val());
         if(!isNaN(selCin))
             checjConfig.selCinType = selCin;
