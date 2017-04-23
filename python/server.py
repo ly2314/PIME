@@ -20,17 +20,11 @@ import sys
 import os
 import random
 import uuid
-from base64 import b64encode
 
 if __name__ == "__main__":
     sys.path.append('python3')
-import tornado.ioloop
-import tornado.web
 
 from serviceManager import textServiceMgr
-
-
-server = None
 
 
 class Client(object):
@@ -49,7 +43,7 @@ class Client(object):
         return (self.service is not None)
 
     def handleRequest(self, msg): # msg is a json object
-        method = msg.get("method", None)
+        method = msg.get("method")
         seqNum = msg.get("seqNum", 0)
         # print("handle message: ", str(id(self)), method, seqNum)
         service = self.service
@@ -65,100 +59,41 @@ class Client(object):
         # print(reply)
         return reply
 
-        
-class MainHandler(tornado.web.RequestHandler):
-
-    def is_authenticated(self):
-        global server
-        user_pass = self.request.headers.get("Authentication", None)
-        return user_pass == server.http_basic_auth
-
-    def post(self, client_id=None):
-        global server
-        if not self.is_authenticated():
-            self.write("")
-            return
-
-        if not client_id:  # add new client
-            client_id = server.new_client()
-            self.write(client_id)
-        else:  # existing client
-            client = server.clients.get(client_id, None)
-            if client:
-                msg = json.loads(self.request.body.decode("UTF-8"))
-                # print("received msg", success, msg)
-                reply = client.handleRequest(msg)
-                replyText = json.dumps(reply) # convert object to json
-                self.write(replyText)
-            else:
-                self.write("")
-
-    def delete(self, client_id=None):
-        if not self.is_authenticated():
-            self.write("")
-            return
-
-        if client_id:
-            server.remove_client(client_id)
-        else:  # terminate the server itself
-            server.exit()
-
 
 class Server(object):
     def __init__(self):
         self.clients = {}
-        # FIXME: this uses the AppData/Roaming dir, but we want the local one.
-        #        alternatively, use the AppData/Temp dir.
-        self.config_dir = os.path.join(os.path.expandvars("%APPDATA%"), "PIME")
-        os.makedirs(self.config_dir, mode=0o700, exist_ok=True)
-
-        self.status_dir = os.path.join(os.path.expandvars("%LOCALAPPDATA%"), "PIME", "status")  # local app data dir
-        self.status_filename = os.path.join(self.status_dir, "python.json")  # the runtime status file
-        os.makedirs(self.status_dir, mode=0o700, exist_ok=True)
-
-        self.access_token = str(uuid.uuid4())  # token used to access the web service
-
-        # http basic authentication header
-        user_pass = b"PIME:" + self.access_token.encode("ascii")
-        self.http_basic_auth = "Basic " + b64encode(user_pass).decode("ascii")
-
-    def __del__(self):
-        if self.status_filename:
-            os.unlink(self.status_filename)
 
     def run(self):
-        app = tornado.web.Application([
-            (r"/(.*)", MainHandler),
-        ])
-        # find an available port
+        print("running:")
         while True:
-            port = random.randint(1025, 65535)
             try:
-                app.listen(port, "127.0.0.1")
+                line = input().strip()
+                if not line:
+                    continue
+                client_id, msg_text = line.split('|', maxsplit=1)
+                msg = json.loads(msg_text)
+                client = self.clients.get(client_id)
+                if not client:
+                    # create a Client instance for the client
+                    client = Client(self)
+                    self.clients[client_id] = client
+                    print("new client:", client_id)
+                if msg.get("method") == "close":  # special handling for closing a client
+                    self.remove_client(client_id)
+                else:
+                    ret = client.handleRequest(msg)
+                    # Send the response to the client via stdout
+                    # one response per line in the format "PIME_MSG|<client_id>|<json reply>"
+                    reply_line = '|'.join(["PIME_MSG", client_id, json.dumps(ret)])
+                    print(reply_line)
+            except EOFError:
+                # stop the server
                 break
-            except OSError:  # port is in use, try another one
-                continue
-
-        # write the server info to file
-        with open(self.status_filename, "w") as f:
-            info = {
-                "pid": os.getpid(),  # process ID
-                "port": port,  # the http port
-                "access_token": self.access_token  # access token to this server
-            }
-            json.dump(info, f, indent=2)
-
-        # setup the main event loop
-        loop = tornado.ioloop.IOLoop.current()
-        loop.start()
-
-    def new_client(self):
-        # create a Client instance for the client
-        client = Client(self)
-        client_id = str(uuid.uuid4())
-        self.clients[client_id] = client
-        print("new client:", client_id)
-        return client_id
+            except Exception as e:
+                # import traceback
+                # traceback.print_tb(sys.last_traceback, file=sys.stdout)
+                print("ERROR:", e, line)
 
     def remove_client(self, client_id):
         print("client disconnected:", client_id)
@@ -167,12 +102,8 @@ class Server(object):
         except KeyError:
             pass
 
-    def exit(self):
-        tornado.ioloop.IOLoop.current().stop()
-
 
 def main():
-    global server
     server = Server()
     server.run()
 

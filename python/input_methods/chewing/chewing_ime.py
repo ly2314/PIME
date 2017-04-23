@@ -147,6 +147,7 @@ class ChewingTextService(TextService):
         # 轉換輸出成簡體中文?
         self.setOutputSimplifiedChinese(cfg.outputSimpChinese)
 
+
     # 初始化新酷音輸入法引擎
     def initChewingContext(self):
         # load libchewing context
@@ -226,6 +227,10 @@ class ChewingTextService(TextService):
             type = "menu"
         )
 
+        # 啟動時預設停用中文輸入 (限 Windows 8 以上適用)
+        if self.client.isWindows8Above:
+            self.setKeyboardOpen(not cfg.disableOnStartup)
+
     # 使用者離開輸入法
     def onDeactivate(self):
         TextService.onDeactivate(self)
@@ -275,7 +280,7 @@ class ChewingTextService(TextService):
         # 使用者開始輸入，還沒送出前的編輯區內容稱 composition string
         # isComposing() 是 False，表示目前沒有正在編輯中文
         # 另外，若使用 "`" key 輸入特殊符號，可能會有編輯區是空的，但選字清單開啟，輸入法需要處理的情況
-		# 此時 isComposing() 也會是 True
+        # 此時 isComposing() 也會是 True
         if self.isComposing():
             return True
         # --------------   以下都是「沒有」正在輸入中文的狀況   --------------
