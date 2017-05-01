@@ -37,6 +37,7 @@
 
 #include "BackendServer.h"
 #include "Utils.h"
+#include "../libIME/WindowsVersion.h"
 
 using namespace std;
 
@@ -351,12 +352,13 @@ void PipeServer::initSecurityAttributes() {
 // References:
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa365588(v=vs.85).aspx
 void PipeServer::initPipe(uv_pipe_t* pipe, const char* app_name, SECURITY_ATTRIBUTES* sa) {
-	char username[UNLEN + 1];
+	wchar_t username[UNLEN + 1];
 	DWORD unlen = UNLEN + 1;
-	if (GetUserNameA(username, &unlen)) {
+	if (GetUserNameW(username, &unlen)) {
 		// add username to the pipe path so it will not clash with other users' pipes.
 		char pipe_name[MAX_PATH];
-		sprintf(pipe_name, "\\\\.\\pipe\\%s\\PIME\\%s", username, app_name);
+		std::string utf8_username = utf8Codec.to_bytes(username, username + unlen);
+		sprintf(pipe_name, "\\\\.\\pipe\\%s\\PIME\\%s", utf8_username.c_str(), app_name);
 		// create the pipe
 		uv_pipe_init_windows_named_pipe(uv_default_loop(), pipe, 0, PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, sa);
 		pipe->data = this;
@@ -430,10 +432,16 @@ int PipeServer::exec(LPSTR cmd) {
 	initBackendServers(topDirPath_);
 
 	// preparing for the server pipe
-	initSecurityAttributes();
-
+	SECURITY_ATTRIBUTES* sa = nullptr;
+	if (Ime::WindowsVersion().isWindows8Above()) {
+		// Setting special security attributes to the named pipe is only needed 
+		// for Windows >= 8 since older versions do not have app containers (metro apps) 
+		// in which connecting to pipes are blocked by default permission settings.
+		initSecurityAttributes();
+		sa = &securityAttributes_;
+	}
 	// initialize the server pipe
-	initPipe(&serverPipe_, "Launcher", &securityAttributes_);
+	initPipe(&serverPipe_, "Launcher", sa);
 
 	// listen to events from clients
 	uv_listen(reinterpret_cast<uv_stream_t*>(&serverPipe_), 32, [](uv_stream_t* server, int status) {
